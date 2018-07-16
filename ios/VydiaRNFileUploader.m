@@ -198,20 +198,14 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolve
             [request setHTTPBody: httpBody];
 
             // I am sorry about warning, but Upload tasks from NSData are not supported in background sessions.
-            uploadTask = [[self urlSession] uploadTaskWithRequest:request fromData: nil completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-                
-                reject(@"RN Uploader", @"RN Uploader", nil);
-            }];
+            uploadTask = [[self urlSession] uploadTaskWithRequest:request fromData: nil];
         } else {
             if (parameters.count > 0) {
                 reject(@"RN Uploader", @"Parameters supported only in multipart type", nil);
                 return;
             }
             
-            uploadTask = [[self urlSession] uploadTaskWithRequest:request fromFile:[NSURL URLWithString: fileURI] completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-                
-                reject(@"RN Uploader", @"RN Uploader", nil);
-            }];
+            uploadTask = [[self urlSession] uploadTaskWithRequest:request fromFile:[NSURL URLWithString: fileURI]];
         }
 
         uploadTask.taskDescription = customUploadId ? customUploadId : [NSString stringWithFormat:@"%i", thisUploadId];
@@ -302,14 +296,15 @@ didCompleteWithError:(NSError *)error {
     } else {
         [data setObject:[NSNull null] forKey:@"responseBody"];
     }
-
-    if (error == nil)
+    NSNumber *statusCode =  [data objectForKey:@"responseCode"];
+    if (error == nil && [statusCode intValue] == 200)
     {
         [self _sendEventWithName:@"RNFileUploader-completed" body:data];
     }
     else
     {
-        [data setObject:error.localizedDescription forKey:@"error"];
+        NSString *errorMsg = error == nil ? @"unkwon error" : error.localizedDescription;
+        [data setObject:errorMsg forKey:@"error"];
         if (error.code == NSURLErrorCancelled) {
             [self _sendEventWithName:@"RNFileUploader-cancelled" body:data];
         } else {
